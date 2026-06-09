@@ -6,14 +6,24 @@ const EMERGENCY_SKILL_MAP: Record<string, string[]> = {
   water: ['food_distribution', 'logistics'],
   shelter: ['rescue', 'logistics'],
   evacuation: ['transport', 'rescue'],
+  flood: ['rescue', 'transport'],
+  fire: ['rescue', 'medical'],
+  earthquake: ['rescue', 'medical', 'logistics'],
+  wildfire: ['transport', 'rescue'],
+  hurricane: ['rescue', 'transport'],
 }
 
 const EMERGENCY_RESOURCE_MAP: Record<string, string[]> = {
-  medical: ['medicine'],
+  medical: ['medicine', 'vehicles'],
   food: ['food'],
   water: ['water'],
   shelter: ['shelter_kits'],
   evacuation: ['vehicles'],
+  flood: ['vehicles', 'shelter_kits', 'water'],
+  fire: ['vehicles', 'medicine'],
+  earthquake: ['medicine', 'shelter_kits', 'vehicles'],
+  wildfire: ['vehicles', 'shelter_kits', 'food'],
+  hurricane: ['vehicles', 'shelter_kits', 'medicine'],
 }
 
 const URGENCY_SCORE: Record<string, number> = {

@@ -8,6 +8,8 @@ export interface IEmergencyRequest extends Document {
   urgency: 'low' | 'medium' | 'high' | 'critical'
   peopleAffected: number
   status: 'pending' | 'assigned' | 'completed'
+  urgency_reason?: string
+  phone?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -33,6 +35,8 @@ const EmergencyRequestSchema = new Schema<IEmergencyRequest>(
       enum: ['pending', 'assigned', 'completed'],
       default: 'pending',
     },
+    urgency_reason: { type: String },
+    phone: { type: String },
   },
   { timestamps: true }
 )

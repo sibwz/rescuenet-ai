@@ -8,15 +8,17 @@ export type VolunteerStatus = 'available' | 'busy' | 'offline'
 export type ResourceType = 'food' | 'water' | 'medicine' | 'shelter_kits' | 'vehicles'
 export type ResourceStatus = 'available' | 'assigned' | 'depleted'
 
-export type MissionStatus = 'active' | 'completed' | 'cancelled'
+export type MissionStatus = 'active' | 'completed' | 'cancelled' | 'awaiting_volunteer' | 'resource_shortage'
 
 export interface EmergencyRequest {
   _id?: string
   reporterName: string
+  phone?: string
   location: string
   emergencyType: EmergencyType
   description: string
   urgency: UrgencyLevel
+  urgency_reason?: string
   peopleAffected: number
   status: RequestStatus
   createdAt?: string
@@ -48,9 +50,9 @@ export interface Mission {
   _id?: string
   emergencyRequestId: string
   emergencyRequest?: EmergencyRequest
-  volunteerId: string
+  volunteerId?: string
   volunteer?: Volunteer
-  resourceId: string
+  resourceId?: string
   resource?: Resource
   status: MissionStatus
   reasoning: string

@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, createPartFromFunctionResponse } from '@google/genai'
 import type { FunctionDeclaration } from '@google/genai'
+import { formatKnowledgeForPrompt, type KnowledgeEntry } from './knowledge'
 
 export interface GeminiPlanInput {
   emergencyRequests: Array<{
@@ -63,59 +64,142 @@ export interface GeminiToolPlanResult {
   geminiError?: string
   toolCalls: ToolCallRecord[]
   turnCount: number
+  modelUsed: string
 }
 
 type OnToolCall = (name: string, args: Record<string, unknown>, resultSummary: string) => void
 
-function isGeminiEnabled(): boolean {
+// ─── Configuration helpers ────────────────────────────────────────────────────
+
+export function isGeminiEnabled(): boolean {
   const project = process.env.GOOGLE_CLOUD_PROJECT_ID
   return !!(project && project !== 'your_google_cloud_project_id_here')
 }
 
-export { isGeminiEnabled }
+export { isGeminiEnabled as isGeminiConfigured }
+
+function getLocation(): string {
+  const loc = process.env.GOOGLE_CLOUD_LOCATION ?? 'us-central1'
+  // 'global' is not a valid Vertex AI regional endpoint for Gemini models
+  if (loc === 'global') {
+    console.warn('[Gemini] GOOGLE_CLOUD_LOCATION=global is invalid for Gemini — defaulting to us-central1')
+    return 'us-central1'
+  }
+  return loc
+}
+
+// Model fallback chain — tries in order until one succeeds
+const MODEL_FALLBACK_CHAIN = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-001',
+  'gemini-1.5-flash',
+]
+
+function getModelChain(): string[] {
+  const preferred = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash'
+  return [preferred, ...MODEL_FALLBACK_CHAIN.filter((m) => m !== preferred)]
+}
 
 function createAI(): GoogleGenAI {
   return new GoogleGenAI({
     vertexai: true,
     project: process.env.GOOGLE_CLOUD_PROJECT_ID!,
-    location: process.env.GOOGLE_CLOUD_LOCATION ?? 'us-central1',
+    location: getLocation(),
   })
 }
 
-// ─── Single-prompt planner (kept for backward compat / non-streaming route) ───
+// ─── Gemini Status Check ──────────────────────────────────────────────────────
 
-export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<GeminiPlanResult> {
+export interface GeminiStatus {
+  available: boolean
+  model: string | null
+  project: string | null
+  location: string
+  error: string | null
+}
+
+export async function checkGeminiStatus(): Promise<GeminiStatus> {
   if (!isGeminiEnabled()) {
-    console.log('Vertex AI not configured — using deterministic fallback')
-    return { result: null }
+    return {
+      available: false,
+      model: null,
+      project: null,
+      location: getLocation(),
+      error: 'GOOGLE_CLOUD_PROJECT_ID not configured',
+    }
   }
 
-  const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash'
-  console.log(`Using Vertex AI Gemini planner (model: ${model})`)
+  const ai = createAI()
+  const project = process.env.GOOGLE_CLOUD_PROJECT_ID!
+  const location = getLocation()
 
-  try {
-    const ai = createAI()
-    const response = await ai.models.generateContent({
-      model,
-      contents: buildGeminiPrompt(input),
-    })
-    const text = response.text ?? ''
+  for (const model of getModelChain()) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: 'Respond with exactly: ONLINE',
+      })
+      const text = response.text?.trim() ?? ''
+      if (text) {
+        console.log(`[Gemini] Status check OK — model: ${model}`)
+        return { available: true, model, project, location, error: null }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`[Gemini] Model ${model} unavailable: ${msg}`)
+    }
+  }
 
-    const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
-    const jsonStr = jsonMatch ? jsonMatch[1] : text
-    const parsed = JSON.parse(jsonStr.trim()) as GeminiPlanOutput
-
-    console.log('Vertex AI Gemini success')
-    return { result: parsed }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(`Vertex AI Gemini failed, fallback active: ${msg}`)
-    return { result: null, geminiError: msg }
+  return {
+    available: false,
+    model: null,
+    project,
+    location,
+    error: 'All models in fallback chain failed. Check ADC credentials and project billing.',
   }
 }
 
-export function buildGeminiPrompt(input: GeminiPlanInput): string {
-  return `You are an AI disaster response coordinator for RescueNet AI.
+// ─── Single-prompt planner (backward compat / non-streaming route) ───────────
+
+export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<GeminiPlanResult> {
+  if (!isGeminiEnabled()) {
+    console.log('[Gemini] Not configured — using deterministic fallback')
+    return { result: null }
+  }
+
+  const ai = createAI()
+
+  for (const model of getModelChain()) {
+    try {
+      console.log(`[Gemini] Single-prompt planner attempting model: ${model}`)
+      const response = await ai.models.generateContent({
+        model,
+        contents: buildGeminiPrompt(input),
+      })
+      const text = response.text ?? ''
+
+      const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
+      const jsonStr = jsonMatch ? jsonMatch[1] : text
+      const parsed = JSON.parse(jsonStr.trim()) as GeminiPlanOutput
+
+      console.log(`[Gemini] Single-prompt success (model: ${model})`)
+      return { result: parsed }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`[Gemini] Model ${model} failed: ${msg}`)
+    }
+  }
+
+  const finalErr = 'All Gemini models failed — check Vertex AI credentials and project configuration'
+  console.error(`[Gemini] ${finalErr}`)
+  return { result: null, geminiError: finalErr }
+}
+
+export function buildGeminiPrompt(input: GeminiPlanInput, knowledgeEntries?: KnowledgeEntry[]): string {
+  const knowledgeSection = knowledgeEntries ? formatKnowledgeForPrompt(knowledgeEntries) : ''
+
+  return `You are an AI disaster response coordinator for RescueNet AI.${knowledgeSection}
 
 Analyze the following emergency situation and create an optimized response plan.
 
@@ -136,6 +220,7 @@ Create a prioritized response plan. Rules:
 5. Prefer volunteers/resources in the same location
 6. Only assign available volunteers and resources
 7. Each volunteer and resource may only be assigned once
+8. Cite the knowledge base source in your reasoning where applicable
 
 Respond with valid JSON only (no markdown fences):
 {
@@ -144,7 +229,7 @@ Respond with valid JSON only (no markdown fences):
       "requestId": "string",
       "volunteerId": "string or null",
       "resourceId": "string or null",
-      "reasoning": "brief 1-2 sentence overall reasoning",
+      "reasoning": "brief 1-2 sentence overall reasoning citing knowledge source",
       "priorityScore": number,
       "reasoningDetails": {
         "priorityReason": "why this request is prioritized at this level above others",
@@ -211,7 +296,10 @@ const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
 ]
 
-const TOOL_CALLING_SYSTEM_PROMPT = `You are an AI disaster response coordinator for RescueNet AI. Your job is to create an optimized emergency response plan by querying MongoDB and matching the best resources to each emergency.
+function buildToolCallingSystemPrompt(knowledgeEntries?: KnowledgeEntry[]): string {
+  const knowledgeSection = knowledgeEntries ? formatKnowledgeForPrompt(knowledgeEntries) : ''
+
+  return `You are an AI disaster response coordinator for RescueNet AI. Your job is to create an optimized emergency response plan by querying MongoDB and matching the best resources to each emergency.${knowledgeSection}
 
 WORKFLOW — follow these steps in order:
 1. Call query_pending_emergencies() to get all active emergencies
@@ -227,7 +315,11 @@ SKILL MATCHING:
 
 PRIORITY SCORES: critical=100, high=75, medium=50, low=25
 
-RULES: Only assign AVAILABLE volunteers/resources. Each can only be assigned ONCE across all plans.
+RULES:
+- Only assign AVAILABLE volunteers/resources
+- Each can only be assigned ONCE across all plans
+- Cite the retrieved knowledge base source in your reasoning
+- Apply the immediate actions from the knowledge base to the nextAction field
 
 When you have enough data, respond with ONLY valid JSON (no markdown):
 {
@@ -236,19 +328,20 @@ When you have enough data, respond with ONLY valid JSON (no markdown):
       "requestId": "string",
       "volunteerId": "string or null",
       "resourceId": "string or null",
-      "reasoning": "1-2 sentence summary",
+      "reasoning": "1-2 sentence summary citing knowledge source",
       "priorityScore": number,
       "reasoningDetails": {
         "priorityReason": "why this priority level",
         "volunteerMatchReason": "why this volunteer was chosen",
         "resourceAllocationReason": "why this resource was chosen",
         "riskLevel": "low|medium|high|critical",
-        "nextAction": "immediate concrete next step"
+        "nextAction": "immediate concrete next step from knowledge base"
       }
     }
   ],
   "overallSummary": "2-3 sentence situation overview and strategy"
 }`
+}
 
 function summarizeToolResult(name: string, result: unknown): string {
   const r = result as Record<string, unknown>
@@ -269,112 +362,113 @@ function summarizeToolResult(name: string, result: unknown): string {
 
 export async function generatePlanWithGeminiTools(
   input: GeminiPlanInput,
-  onToolCall?: OnToolCall
+  onToolCall?: OnToolCall,
+  knowledgeEntries?: KnowledgeEntry[]
 ): Promise<GeminiToolPlanResult> {
   if (!isGeminiEnabled()) {
-    return { result: null, toolCalls: [], turnCount: 0 }
+    return { result: null, toolCalls: [], turnCount: 0, modelUsed: 'none' }
   }
 
-  const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash'
   const toolCalls: ToolCallRecord[] = []
+  const ai = createAI()
+  const systemInstruction = buildToolCallingSystemPrompt(knowledgeEntries)
 
-  try {
-    const ai = createAI()
+  const executeTool = (name: string, args: Record<string, unknown>): object => {
+    let result: object
 
-    const executeTool = (name: string, args: Record<string, unknown>): object => {
-      let result: object
-
-      switch (name) {
-        case 'query_pending_emergencies':
-          result = {
-            emergencies: input.emergencyRequests,
-            count: input.emergencyRequests.length,
-          }
-          break
-
-        case 'find_available_volunteers': {
-          let vols = input.volunteers.filter((v) => v.status === 'available')
-          if (args.skill) vols = vols.filter((v) => v.skills.includes(args.skill as string))
-          if (args.location) {
-            const loc = (args.location as string).toLowerCase()
-            vols = vols.filter((v) => v.location.toLowerCase().includes(loc))
-          }
-          result = { volunteers: vols, count: vols.length }
-          break
+    switch (name) {
+      case 'query_pending_emergencies':
+        result = {
+          emergencies: input.emergencyRequests,
+          count: input.emergencyRequests.length,
         }
+        break
 
-        case 'find_available_resources': {
-          let res = input.resources.filter((r) => r.status === 'available')
-          if (args.resourceType) res = res.filter((r) => r.resourceType === args.resourceType)
-          if (args.location) {
-            const loc = (args.location as string).toLowerCase()
-            res = res.filter((r) => r.location.toLowerCase().includes(loc))
-          }
-          result = { resources: res, count: res.length }
-          break
+      case 'find_available_volunteers': {
+        let vols = input.volunteers.filter((v) => v.status === 'available')
+        if (args.skill) vols = vols.filter((v) => v.skills.includes(args.skill as string))
+        if (args.location) {
+          const loc = (args.location as string).toLowerCase()
+          vols = vols.filter((v) => v.location.toLowerCase().includes(loc))
         }
-
-        default:
-          result = { error: `Unknown tool: ${name}` }
+        result = { volunteers: vols, count: vols.length }
+        break
       }
 
-      const summary = summarizeToolResult(name, result)
-      toolCalls.push({ name, args, resultSummary: summary, timestamp: new Date().toISOString() })
-      onToolCall?.(name, args, summary)
-      return result
-    }
-
-    const chat = ai.chats.create({
-      model,
-      config: {
-        systemInstruction: TOOL_CALLING_SYSTEM_PROMPT,
-        tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
-      },
-    })
-
-    let response = await chat.sendMessage({ message: 'Begin the emergency response planning.' })
-    let turnCount = 1
-    let maxTurns = 20
-
-    while (maxTurns-- > 0) {
-      const fns = response.functionCalls
-      if (!fns || fns.length === 0) break
-
-      const responseParts = fns.map((fn) =>
-        createPartFromFunctionResponse(
-          fn.id ?? '',
-          fn.name ?? '',
-          { result: executeTool(fn.name ?? '', (fn.args ?? {}) as Record<string, unknown>) }
-        )
-      )
-
-      response = await chat.sendMessage({ message: responseParts })
-      turnCount++
-    }
-
-    const text = response.text ?? ''
-    if (!text.trim()) {
-      return {
-        result: null,
-        geminiError: 'Vertex AI Gemini returned empty response after tool calls',
-        toolCalls,
-        turnCount,
+      case 'find_available_resources': {
+        let res = input.resources.filter((r) => r.status === 'available')
+        if (args.resourceType) res = res.filter((r) => r.resourceType === args.resourceType)
+        if (args.location) {
+          const loc = (args.location as string).toLowerCase()
+          res = res.filter((r) => r.location.toLowerCase().includes(loc))
+        }
+        result = { resources: res, count: res.length }
+        break
       }
+
+      default:
+        result = { error: `Unknown tool: ${name}` }
     }
 
-    const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
-    const jsonStr = jsonMatch ? jsonMatch[1] : text
-    const parsed = JSON.parse(jsonStr.trim()) as GeminiPlanOutput
-
-    console.log(
-      `Vertex AI Gemini tool calling success — ${toolCalls.length} tool calls, ${turnCount} turns`
-    )
-    return { result: parsed, toolCalls, turnCount }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(`Vertex AI Gemini tool calling failed: ${msg}`)
-    return { result: null, geminiError: msg, toolCalls, turnCount: 0 }
+    const summary = summarizeToolResult(name, result)
+    toolCalls.push({ name, args, resultSummary: summary, timestamp: new Date().toISOString() })
+    onToolCall?.(name, args, summary)
+    return result
   }
+
+  for (const model of getModelChain()) {
+    try {
+      console.log(`[Gemini] Tool-calling planner attempting model: ${model}`)
+
+      const chat = ai.chats.create({
+        model,
+        config: {
+          systemInstruction,
+          tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+        },
+      })
+
+      let response = await chat.sendMessage({ message: 'Begin the emergency response planning.' })
+      let turnCount = 1
+      let maxTurns = 20
+
+      while (maxTurns-- > 0) {
+        const fns = response.functionCalls
+        if (!fns || fns.length === 0) break
+
+        const responseParts = fns.map((fn) =>
+          createPartFromFunctionResponse(fn.id ?? '', fn.name ?? '', {
+            result: executeTool(fn.name ?? '', (fn.args ?? {}) as Record<string, unknown>),
+          })
+        )
+
+        response = await chat.sendMessage({ message: responseParts })
+        turnCount++
+      }
+
+      const text = response.text ?? ''
+      if (!text.trim()) {
+        console.warn(`[Gemini] Model ${model} returned empty response — trying next`)
+        continue
+      }
+
+      const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
+      const jsonStr = jsonMatch ? jsonMatch[1] : text
+      const parsed = JSON.parse(jsonStr.trim()) as GeminiPlanOutput
+
+      console.log(
+        `[Gemini] Tool-calling success — model: ${model}, ${toolCalls.length} tool calls, ${turnCount} turns`
+      )
+      return { result: parsed, toolCalls, turnCount, modelUsed: model }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`[Gemini] Model ${model} tool-calling failed: ${msg}`)
+    }
+  }
+
+  const finalErr = 'All Gemini models in fallback chain failed — check Vertex AI credentials and project quota'
+  console.error(`[Gemini] ${finalErr}`)
+  return { result: null, geminiError: finalErr, toolCalls, turnCount: 0, modelUsed: 'none' }
 }
 
 // ─── Natural Language → MongoDB Query ────────────────────────────────────────
@@ -405,12 +499,9 @@ export async function answerNaturalLanguageQuery(
     }
   }
 
-  const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash'
+  const ai = createAI()
 
-  try {
-    const ai = createAI()
-
-    const prompt = `You are a MongoDB query assistant for RescueNet AI, a disaster response coordination system.
+  const prompt = `You are a MongoDB query assistant for RescueNet AI, a disaster response coordination system.
 
 Database context:
 - emergency_requests: ${context.emergencyCount} documents. Fields: location, emergencyType (medical/food/water/shelter/evacuation), urgency (low/medium/high/critical), peopleAffected, status (pending/assigned/completed), reporterName, description
@@ -427,29 +518,200 @@ Respond with valid JSON only:
   "naturalAnswer": "A clear, concise answer to the question in 1-2 sentences"
 }`
 
-    const response = await ai.models.generateContent({ model, contents: prompt })
-    const text = response.text ?? ''
+  for (const model of getModelChain()) {
+    try {
+      const response = await ai.models.generateContent({ model, contents: prompt })
+      const text = response.text ?? ''
 
-    const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
-    const jsonStr = jsonMatch ? jsonMatch[1] : text
-    const parsed = JSON.parse(jsonStr.trim()) as {
-      collection: string | null
-      mongoFilter: Record<string, unknown> | null
-      naturalAnswer: string
-    }
+      const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
+      const jsonStr = jsonMatch ? jsonMatch[1] : text
+      const parsed = JSON.parse(jsonStr.trim()) as {
+        collection: string | null
+        mongoFilter: Record<string, unknown> | null
+        naturalAnswer: string
+      }
 
-    return {
-      answer: parsed.naturalAnswer,
-      collection: parsed.collection,
-      mongoFilter: parsed.mongoFilter,
+      return {
+        answer: parsed.naturalAnswer,
+        collection: parsed.collection,
+        mongoFilter: parsed.mongoFilter,
+      }
+    } catch {
+      continue
     }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return {
-      answer: 'Failed to process query.',
-      collection: null,
-      mongoFilter: null,
-      error: msg,
+  }
+
+  return {
+    answer: 'Failed to process query — Gemini unavailable.',
+    collection: null,
+    mongoFilter: null,
+    error: 'All models failed',
+  }
+}
+
+// ─── AI Urgency Classification ────────────────────────────────────────────────
+
+export async function classifyEmergencyUrgency(
+  description: string,
+  emergencyType: string,
+  peopleAffected: number
+): Promise<{ urgency: 'low' | 'medium' | 'high' | 'critical'; urgencyReason: string }> {
+  // Deterministic fallback used when Gemini is unavailable
+  function ruleBasedClassify() {
+    if (
+      description.toLowerCase().includes('collapse') ||
+      description.toLowerCase().includes('trapped') ||
+      description.toLowerCase().includes('critical') ||
+      peopleAffected >= 50
+    ) return 'critical'
+    if (peopleAffected >= 20 || description.toLowerCase().includes('urgent')) return 'high'
+    if (peopleAffected >= 5) return 'medium'
+    return 'low'
+  }
+
+  if (!isGeminiEnabled()) {
+    const urgency = ruleBasedClassify() as 'low' | 'medium' | 'high' | 'critical'
+    return { urgency, urgencyReason: 'Rule-based classification (Gemini not configured).' }
+  }
+
+  const ai = createAI()
+  const prompt = `You are an emergency triage AI for RescueNet disaster response.
+
+Classify the urgency of this emergency report:
+- Emergency Type: ${emergencyType}
+- Description: "${description}"
+- People Affected: ${peopleAffected}
+
+Urgency scale:
+- critical: Immediate life-threatening danger (structural collapse, trapped victims, severe injuries, >50 affected)
+- high: Significant health/safety risk, time-sensitive, 20-50 people affected
+- medium: Needs prompt attention but not immediately life-threatening, 5-20 affected
+- low: Manageable situation, few people, can be scheduled
+
+Respond with ONLY valid JSON:
+{"urgency":"critical|high|medium|low","urgencyReason":"One sentence explaining this classification."}`
+
+  for (const model of getModelChain()) {
+    try {
+      const response = await ai.models.generateContent({ model, contents: prompt })
+      const text = response.text ?? ''
+      const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
+      const jsonStr = jsonMatch ? jsonMatch[1] : text
+      const parsed = JSON.parse(jsonStr.trim()) as {
+        urgency: 'low' | 'medium' | 'high' | 'critical'
+        urgencyReason: string
+      }
+      if (['low', 'medium', 'high', 'critical'].includes(parsed.urgency)) {
+        return parsed
+      }
+    } catch {
+      continue
     }
+  }
+
+  const urgency = ruleBasedClassify() as 'low' | 'medium' | 'high' | 'critical'
+  return { urgency, urgencyReason: 'Classified by rule-based fallback after AI timeout.' }
+}
+
+// ─── Coordinator AI Chat ──────────────────────────────────────────────────────
+
+export interface CoordinatorChatResult {
+  answer: string
+  reasoning: string
+  toolCallsUsed: string[]
+  dataQueried: string[]
+  error?: string
+}
+
+export async function coordinatorChat(
+  question: string,
+  dbContext: {
+    emergencies: unknown[]
+    volunteers: unknown[]
+    resources: unknown[]
+    missions: unknown[]
+  }
+): Promise<CoordinatorChatResult> {
+  const toolCallsUsed: string[] = []
+  const dataQueried: string[] = []
+
+  // Determine which collections are relevant to the question
+  const q = question.toLowerCase()
+  if (q.includes('emergenc') || q.includes('critical') || q.includes('request') || q.includes('urgent') || q.includes('first') || q.includes('priorit')) {
+    dataQueried.push('emergency_requests')
+    toolCallsUsed.push('query_emergency_requests')
+  }
+  if (q.includes('volunteer') || q.includes('available') || q.includes('assign') || q.includes('staff')) {
+    dataQueried.push('volunteers')
+    toolCallsUsed.push('query_volunteers')
+  }
+  if (q.includes('resource') || q.includes('supply') || q.includes('food') || q.includes('water') || q.includes('medicine') || q.includes('low') || q.includes('stock')) {
+    dataQueried.push('resources')
+    toolCallsUsed.push('query_resources')
+  }
+  if (q.includes('mission') || q.includes('active') || q.includes('complet') || q.includes('status')) {
+    dataQueried.push('missions')
+    toolCallsUsed.push('query_missions')
+  }
+  // If no specific match, query all
+  if (dataQueried.length === 0) {
+    dataQueried.push('emergency_requests', 'volunteers', 'resources', 'missions')
+    toolCallsUsed.push('query_all_collections')
+  }
+
+  if (!isGeminiEnabled()) {
+    return {
+      answer: 'Gemini AI is not configured. Please set up Vertex AI credentials to enable the AI coordinator.',
+      reasoning: 'Gemini not configured',
+      toolCallsUsed,
+      dataQueried,
+      error: 'Gemini not configured',
+    }
+  }
+
+  const prompt = `You are the AI Coordinator for RescueNet disaster response system. Answer the coordinator's question using the live database data below.
+
+QUESTION: "${question}"
+
+LIVE DATABASE STATE:
+Emergency Requests (${dbContext.emergencies.length} total):
+${JSON.stringify(dbContext.emergencies.slice(0, 20), null, 2)}
+
+Volunteers (${dbContext.volunteers.length} total):
+${JSON.stringify(dbContext.volunteers.slice(0, 15), null, 2)}
+
+Resources (${dbContext.resources.length} total):
+${JSON.stringify(dbContext.resources.slice(0, 15), null, 2)}
+
+Active Missions (${dbContext.missions.length} total):
+${JSON.stringify(dbContext.missions.slice(0, 10), null, 2)}
+
+Provide a direct, grounded answer based on the actual data. Be specific with numbers and names.
+Respond with ONLY valid JSON:
+{
+  "answer": "Clear direct answer to the question with specific data points",
+  "reasoning": "Brief explanation of how you arrived at this answer and what data you analyzed"
+}`
+
+  const ai = createAI()
+  for (const model of getModelChain()) {
+    try {
+      const response = await ai.models.generateContent({ model, contents: prompt })
+      const text = response.text ?? ''
+      const jsonMatch = text.match(/```(?:json)?\n?([\s\S]*?)\n?```/)
+      const jsonStr = jsonMatch ? jsonMatch[1] : text
+      const parsed = JSON.parse(jsonStr.trim()) as { answer: string; reasoning: string }
+      return { answer: parsed.answer, reasoning: parsed.reasoning, toolCallsUsed, dataQueried }
+    } catch {
+      continue
+    }
+  }
+
+  return {
+    answer: 'Unable to process query at this time. Please try again.',
+    reasoning: 'All Gemini models failed',
+    toolCallsUsed,
+    dataQueried,
+    error: 'All models failed',
   }
 }
