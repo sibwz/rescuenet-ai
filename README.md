@@ -204,40 +204,40 @@ graph TB
 sequenceDiagram
     actor User
     participant Form as Report Form
-    participant ValAPI as /api/validate-location
+    participant ValAPI as api-validate-location
     participant Geocoder as Nominatim
-    participant ReportAPI as /api/report
+    participant ReportAPI as api-report
     participant Gemini as Gemini 2.5 Flash
-    participant Dispatch as dispatchEmergency()
-    participant Planner as deterministicPlanner()
+    participant Dispatch as dispatchEmergency
+    participant Planner as deterministicPlanner
     participant DB as MongoDB Atlas
 
     User->>Form: Fill emergency form
-    Form->>ValAPI: POST location (debounced 700 ms)
+    Form->>ValAPI: POST location debounced 700ms
     ValAPI->>Geocoder: Geocode address string
-    Geocoder-->>ValAPI: lat/lng or not-found
-    ValAPI-->>Form: valid ✓ / invalid ✗ / too vague ✗
+    Geocoder-->>ValAPI: lat, lng or not-found
+    ValAPI-->>Form: valid, invalid, or too vague
     Note over Form: Submit button stays disabled until location is validated
 
-    User->>ReportAPI: Submit (OTP verified)
-    ReportAPI->>Geocoder: Re-validate + store coordinates
+    User->>ReportAPI: Submit - OTP verified
+    ReportAPI->>Geocoder: Re-validate, store coordinates
     ReportAPI->>Gemini: Classify urgency from description
-    Gemini-->>ReportAPI: urgency level + written reason
-    ReportAPI->>DB: Save EmergencyRequest (status: pending)
+    Gemini-->>ReportAPI: urgency level, written reason
+    ReportAPI->>DB: Save EmergencyRequest - status pending
 
-    ReportAPI->>Dispatch: dispatchEmergency(emergencyId)
-    Dispatch->>DB: Load all available volunteers + resources
+    ReportAPI->>Dispatch: dispatchEmergency - emergencyId
+    Dispatch->>DB: Load all available volunteers, resources
     Dispatch->>Planner: Score and rank candidates
-    Note over Planner: Skill + distance + vehicle bonus per volunteer; type + distance + quantity score per resource
-    Planner-->>Dispatch: Best volunteer + best resource
+    Note over Planner: Skill, distance, vehicle bonus per volunteer; type, distance, quantity score per resource
+    Planner-->>Dispatch: Best volunteer, best resource
 
-    Dispatch->>DB: Update EmergencyRequest → assigned
-    Dispatch->>DB: Update Volunteer → busy
-    Dispatch->>DB: Update Resource → assigned
+    Dispatch->>DB: Update EmergencyRequest to assigned
+    Dispatch->>DB: Update Volunteer to busy
+    Dispatch->>DB: Update Resource to assigned
     Dispatch->>DB: Create Mission record
     Dispatch->>DB: Write AgentLog entry
     Dispatch-->>ReportAPI: DispatchResult with step trace
-    ReportAPI-->>Form: Success + pipeline steps array
+    ReportAPI-->>Form: Success, pipeline steps array
     Form-->>User: Animated step-by-step dispatch pipeline
 ```
 
