@@ -27,18 +27,17 @@
 3. [Solution](#-solution)
 4. [Key Features](#-key-features)
 5. [System Architecture](#-system-architecture)
-6. [AI Decision Workflow](#-ai-decision-workflow)
-7. [Distance-Based Dispatch Workflow](#-distance-based-dispatch-workflow)
-8. [Technology Stack](#-technology-stack)
-9. [Database Design](#-database-design)
-10. [Installation Guide](#-installation-guide)
-11. [Environment Variables](#-environment-variables)
-12. [Running Locally](#-running-locally)
-13. [API Routes](#-api-routes)
-14. [Future Improvements](#-future-improvements)
-15. [Hackathon Compliance](#-hackathon-compliance)
-16. [Team](#-team)
-17. [License](#-license)
+6. [Distance-Based Dispatch Workflow](#-distance-based-dispatch-workflow)
+7. [Technology Stack](#-technology-stack)
+8. [Database Design](#-database-design)
+9. [Installation Guide](#-installation-guide)
+10. [Environment Variables](#-environment-variables)
+11. [Running Locally](#-running-locally)
+12. [API Routes](#-api-routes)
+13. [Future Improvements](#-future-improvements)
+14. [Hackathon Compliance](#-hackathon-compliance)
+15. [Team](#-team)
+16. [License](#-license)
 
 ---
 
@@ -198,48 +197,6 @@ graph TB
 
 ---
 
-## 🧠 AI Decision Workflow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Form as Report Form
-    participant ValAPI as api-validate-location
-    participant Geocoder as Nominatim
-    participant ReportAPI as api-report
-    participant Gemini as Gemini 2.5 Flash
-    participant Dispatch as dispatchEmergency
-    participant Planner as deterministicPlanner
-    participant DB as MongoDB Atlas
-
-    User->>Form: Fill emergency form
-    Form->>ValAPI: POST location debounced 700ms
-    ValAPI->>Geocoder: Geocode address string
-    Geocoder-->>ValAPI: lat, lng or not-found
-    ValAPI-->>Form: valid, invalid, or too vague
-    Note over Form: Submit button stays disabled until location is validated
-
-    User->>ReportAPI: Submit - OTP verified
-    ReportAPI->>Geocoder: Re-validate, store coordinates
-    ReportAPI->>Gemini: Classify urgency from description
-    Gemini-->>ReportAPI: urgency level, written reason
-    ReportAPI->>DB: Save EmergencyRequest - status pending
-
-    ReportAPI->>Dispatch: dispatchEmergency - emergencyId
-    Dispatch->>DB: Load all available volunteers, resources
-    Dispatch->>Planner: Score and rank candidates
-    Note over Planner: Skill, distance, vehicle bonus per volunteer; type, distance, quantity score per resource
-    Planner-->>Dispatch: Best volunteer, best resource
-
-    Dispatch->>DB: Update EmergencyRequest to assigned
-    Dispatch->>DB: Update Volunteer to busy
-    Dispatch->>DB: Update Resource to assigned
-    Dispatch->>DB: Create Mission record
-    Dispatch->>DB: Write AgentLog entry
-    Dispatch-->>ReportAPI: DispatchResult with step trace
-    ReportAPI-->>Form: Success, pipeline steps array
-    Form-->>User: Animated step-by-step dispatch pipeline
-```
 
 ---
 
