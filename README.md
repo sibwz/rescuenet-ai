@@ -137,35 +137,35 @@ Coordinators get a live dashboard to approve volunteer registrations, monitor ac
 graph TB
     subgraph Client["Client — Next.js 14 App Router"]
         UI[React Pages]
-        Forms[Form Components\nReal-time Location Validation]
+        Forms["Form Components — Real-time Location Validation"]
         Dashboard[Analytics Dashboard]
     end
 
     subgraph API["API Layer — Next.js Route Handlers"]
-        ER[/api/emergency]
-        RPT[/api/report + OTP]
-        VOL[/api/volunteers + OTP]
-        RES[/api/resources]
-        MSN[/api/missions]
-        VLD[/api/validate-location]
-        AGT[/api/agent]
+        ER["/api/emergency"]
+        RPT["/api/report + OTP"]
+        VOL["/api/volunteers + OTP"]
+        RES["/api/resources"]
+        MSN["/api/missions"]
+        VLD["/api/validate-location"]
+        AGT["/api/agent"]
     end
 
     subgraph AI["AI Layer — Google Cloud"]
-        GEM["Gemini 2.5 Flash\nUrgency Classification\nImage Analysis\nAgent Reasoning"]
+        GEM["Gemini 2.5 Flash — Urgency Classification — Image Analysis"]
     end
 
     subgraph Dispatch["Server-Side Dispatch Engine"]
-        DISP["dispatchEmergency()\ndispatch.ts"]
-        PLAN["deterministicPlanner()\nplanner.ts"]
-        AUTO["autoReassignPending()\nauto-reassign.ts"]
-        ETA["computeETAMinutes()\neta.ts"]
+        DISP["dispatchEmergency()"]
+        PLAN["deterministicPlanner()"]
+        AUTO["autoReassignPending()"]
+        ETA["computeETAMinutes()"]
     end
 
     subgraph Location["Location Services"]
-        LOC["location-validator.ts\nisLocationTooVague()"]
-        NOM["Nominatim Geocoder\nOpenStreetMap"]
-        HAV["Haversine Distance\nFormula"]
+        LOC["location-validator.ts — isLocationTooVague()"]
+        NOM["Nominatim Geocoder — OpenStreetMap"]
+        HAV["Haversine Distance Formula"]
     end
 
     subgraph DB["MongoDB Atlas"]
@@ -217,7 +217,7 @@ sequenceDiagram
     ValAPI->>Geocoder: Geocode address string
     Geocoder-->>ValAPI: lat/lng or not-found
     ValAPI-->>Form: valid ✓ / invalid ✗ / too vague ✗
-    Note over Form: Submit button stays disabled\nuntil location is validated
+    Note over Form: Submit button stays disabled until location is validated
 
     User->>ReportAPI: Submit (OTP verified)
     ReportAPI->>Geocoder: Re-validate + store coordinates
@@ -228,7 +228,7 @@ sequenceDiagram
     ReportAPI->>Dispatch: dispatchEmergency(emergencyId)
     Dispatch->>DB: Load all available volunteers + resources
     Dispatch->>Planner: Score and rank candidates
-    Note over Planner: Skill weight + distance score\n+ vehicle bonus per volunteer\nType priority + distance score\n+ quantity score per resource
+    Note over Planner: Skill + distance + vehicle bonus per volunteer; type + distance + quantity score per resource
     Planner-->>Dispatch: Best volunteer + best resource
 
     Dispatch->>DB: Update EmergencyRequest → assigned
@@ -247,42 +247,42 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A([New Emergency Created]) --> B{Coordinates\nstored with record?}
-    B -- Yes --> C[Use stored lat / lng]
+    A([New Emergency Created]) --> B{"Coordinates stored with record?"}
+    B -- Yes --> C["Use stored lat / lng"]
     B -- No / Legacy record --> D[Re-geocode location text]
-    D --> E{Geocode\nsucceeded?}
-    E -- No --> WAIT([Status: waiting_for_volunteer\nNo coordinates — cannot dispatch])
+    D --> E{"Geocode succeeded?"}
+    E -- No --> WAIT(["Status: waiting_for_volunteer — no coordinates"])
     E -- Yes --> C
 
     C --> F[Score all available volunteers]
 
-    F --> G{Has valid\ncoordinates?}
+    F --> G{"Has valid coordinates?"}
     G -- No / city_only --> SKIP1([Skip this volunteer])
     G -- Yes --> H[Haversine distance to emergency]
-    H --> I{Within 50 km?}
+    H --> I{"Within 50 km?"}
     I -- No --> SKIP1
-    I -- Yes --> J{Skill match?}
+    I -- Yes --> J{"Skill match?"}
     J -- No match --> SKIP1
-    J -- Match --> K["Score = skill_weight × matches\n+ dist_score\n+ vehicle_bonus"]
+    J -- Match --> K["Score = skill weight x matches + dist score + vehicle bonus"]
 
     K --> L[Select highest-score volunteer]
 
     L --> M[Score all available resources]
-    M --> N{Has valid depot\ncoordinates?}
+    M --> N{"Has valid depot coordinates?"}
     N -- No --> SKIP2([Skip this resource])
     N -- Yes --> O[Haversine distance to emergency]
-    O --> P{Within 80 km?}
+    O --> P{"Within 80 km?"}
     P -- No --> SKIP2
-    P -- Yes --> Q{Type matches\nemergency type?}
+    P -- Yes --> Q{"Type matches emergency type?"}
     Q -- No --> SKIP2
-    Q -- Yes --> R["Score = type_priority\n+ dist_score\n+ quantity_score"]
+    Q -- Yes --> R["Score = type priority + dist score + quantity score"]
 
     R --> S[Select highest-score resource]
 
-    S --> T{Assignment\noutcome}
-    T -- Volunteer only --> U([Mission: resource_shortage\nautoReassignPending on next restock])
-    T -- Neither assigned --> V([Mission: waiting_for_volunteer\nautoReassignPending on next availability])
-    T -- Both assigned --> W([Mission: active ✓])
+    S --> T{"Assignment outcome"}
+    T -- Volunteer only --> U(["Mission: resource_shortage — autoReassignPending on restock"])
+    T -- Neither assigned --> V(["Mission: waiting_for_volunteer — autoReassignPending on availability"])
+    T -- Both assigned --> W(["Mission: active"])
 
     W --> X[Update Emergency + Volunteer + Resource]
     X --> Y[Create Mission Record with ETA]
