@@ -19,9 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body style={{ background: '#080d1a' }} className="flex min-h-screen">
+      <body className="flex min-h-screen">
         <Sidebar />
-        <main className="flex-1 ml-[260px] min-h-screen overflow-auto" style={{ background: '#080d1a' }}>
+        <main className="flex-1 ml-[260px] min-h-screen overflow-auto">
           <ErrorBoundary>
             {children}
           </ErrorBoundary>

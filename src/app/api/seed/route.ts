@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
+import { isDbConnectionError, dbOfflineResponse } from '@/lib/db-error'
 import EmergencyRequest from '@/models/EmergencyRequest'
 import Volunteer from '@/models/Volunteer'
 import Resource from '@/models/Resource'
@@ -225,6 +226,7 @@ export async function POST() {
       },
     })
   } catch (error) {
+    if (isDbConnectionError(error)) return dbOfflineResponse()
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Seed error:', msg)
     return NextResponse.json(

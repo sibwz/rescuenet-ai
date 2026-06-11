@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
+import { isDbConnectionError, dbOfflineResponse } from '@/lib/db-error'
 import Mission from '@/models/Mission'
 
 export async function GET() {
@@ -13,6 +14,7 @@ export async function GET() {
       .lean()
     return NextResponse.json(missions)
   } catch (error) {
+    if (isDbConnectionError(error)) return dbOfflineResponse()
     return NextResponse.json({ error: 'Failed to fetch missions' }, { status: 500 })
   }
 }
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
       .lean()
     return NextResponse.json(populated, { status: 201 })
   } catch (error) {
+    if (isDbConnectionError(error)) return dbOfflineResponse()
     return NextResponse.json({ error: 'Failed to create mission' }, { status: 500 })
   }
 }

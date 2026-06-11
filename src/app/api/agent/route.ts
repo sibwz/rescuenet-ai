@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
+import { isDbConnectionError, dbOfflineResponse } from '@/lib/db-error'
 import EmergencyRequest from '@/models/EmergencyRequest'
 import Volunteer from '@/models/Volunteer'
 import Resource from '@/models/Resource'
@@ -96,6 +97,7 @@ export async function GET() {
         `Analyzed ${requests.length} pending requests, ${availableVolCount} available volunteers, and ${availableResCount} available resources. Generated ${plans.length} prioritized mission plans using the deterministic planner.`,
     })
   } catch (error) {
+    if (isDbConnectionError(error)) return dbOfflineResponse()
     console.error('Agent error:', error)
     return NextResponse.json({ error: 'Agent failed to generate plan' }, { status: 500 })
   }
@@ -109,27 +111,53 @@ export async function POST(request: Request) {
     const created = []
 
     for (const plan of plans) {
-      if (!plan.suggestedVolunteer || !plan.suggestedResource) continue
+      if (!plan.suggestedVolunteer) continue
 
-      const mission = await Mission.create({
+      const missionStatus = plan.suggestedResource ? 'active' : 'resource_shortage'
+
+      const missionData: Record<string, unknown> = {
         emergencyRequestId: plan.requestId,
         volunteerId: plan.suggestedVolunteer._id,
-        resourceId: plan.suggestedResource._id,
         reasoning: plan.reasoning,
         coordinatorConfirmed: true,
-        status: 'active',
-      })
+        status: missionStatus,
+      }
+      if (plan.suggestedResource) {
+        missionData.resourceId = plan.suggestedResource._id
+      }
 
-      await Promise.all([
-        EmergencyRequest.findByIdAndUpdate(plan.requestId, { status: 'assigned' }),
-        Volunteer.findByIdAndUpdate(plan.suggestedVolunteer._id, { status: 'busy' }),
-        Resource.findByIdAndUpdate(plan.suggestedResource._id, { status: 'assigned' }),
-      ])
+      const mission = await Mission.create(missionData)
+      const missionId = String(mission._id)
+
+      console.log(`[Agent POST] Mission ${missionId} created for request ${plan.requestId} — volunteer: ${plan.suggestedVolunteer.name}, status: ${missionStatus}`)
+
+      const emergencyUpdate: Record<string, unknown> = {
+        status: 'assigned',
+        assignedVolunteerId: String(plan.suggestedVolunteer._id),
+        assignedMissionId: missionId,
+        assignedAt: new Date(),
+      }
+
+      const updates: Promise<unknown>[] = [
+        EmergencyRequest.findByIdAndUpdate(plan.requestId, emergencyUpdate),
+        Volunteer.findByIdAndUpdate(plan.suggestedVolunteer._id, {
+          status: 'busy',
+          currentMissionId: mission._id,
+        }),
+      ]
+      if (plan.suggestedResource) {
+        updates.push(Resource.findByIdAndUpdate(plan.suggestedResource._id, { status: 'assigned' }))
+      }
+      await Promise.all(updates)
 
       await AgentLog.create({
         action: 'MISSION_CREATED',
-        details: `Mission created for request ${plan.requestId}. Volunteer: ${plan.suggestedVolunteer.name}. Resource: ${plan.suggestedResource.resourceType}.`,
-        relatedIds: [plan.requestId, plan.suggestedVolunteer._id!, plan.suggestedResource._id!],
+        details: `Mission ${missionId} created for request ${plan.requestId}. Volunteer: ${plan.suggestedVolunteer.name}. Resource: ${plan.suggestedResource?.resourceType ?? 'none'}.`,
+        relatedIds: [
+          plan.requestId,
+          String(plan.suggestedVolunteer._id),
+          ...(plan.suggestedResource ? [String(plan.suggestedResource._id)] : []),
+        ],
       })
 
       created.push(mission)
@@ -137,6 +165,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ created: created.length, missions: created })
   } catch (error) {
+    if (isDbConnectionError(error)) return dbOfflineResponse()
     console.error('Mission creation error:', error)
     return NextResponse.json({ error: 'Failed to create missions' }, { status: 500 })
   }

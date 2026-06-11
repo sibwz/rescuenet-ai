@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
+import { isDbConnectionError, dbOfflineResponse } from '@/lib/db-error'
 
 export const dynamic = 'force-dynamic'
 import EmergencyRequest from '@/models/EmergencyRequest'
@@ -122,6 +123,7 @@ export async function GET() {
       },
     })
   } catch (error) {
+    if (isDbConnectionError(error)) return dbOfflineResponse()
     const msg = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: msg }, { status: 500 })
   }

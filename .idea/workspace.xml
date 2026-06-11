@@ -5,12 +5,43 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="aa054a85-4e5b-4311-8085-ce9f4d215eac" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/RescueNet.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/agent/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/agent/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/agent/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/agent/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/dashboard/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/dashboard/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/demo/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/demo/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/emergency/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/emergency/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/emergency/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/emergency/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/missions/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/missions/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/missions/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/missions/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/report/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/report/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/resources/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/resources/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/resources/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/resources/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/seed/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/seed/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/volunteers/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/volunteers/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/volunteers/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/volunteers/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/emergency/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/emergency/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/missions/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/missions/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/report/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/report/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/resources/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/resources/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/volunteers/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/volunteers/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/layout/Sidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/layout/Sidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ui/Badge.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Badge.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ui/Button.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Button.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ui/Modal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Modal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/dispatch.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/dispatch.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/mongodb.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/mongodb.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/planner.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/planner.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/models/EmergencyRequest.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/EmergencyRequest.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/models/Mission.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/Mission.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/models/Resource.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/Resource.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/models/Volunteer.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/Volunteer.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tailwind.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/tailwind.config.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,7 +64,8 @@
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "master"
+    "git-widget-placeholder": "master",
+    "settings.editor.selected.configurable": "editor.preferences.tabs"
   }
 }]]></component>
   <component name="SharedIndexes">

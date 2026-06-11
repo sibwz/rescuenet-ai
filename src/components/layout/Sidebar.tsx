@@ -11,7 +11,6 @@ import {
   Target,
   ScrollText,
   GitBranch,
-  Rocket,
   Map,
   MessageSquare,
   BarChart2,
@@ -26,7 +25,7 @@ type NavItem = {
   href: string
   label: string
   icon: React.ElementType
-  badge?: { label: string; cls: string }
+  badge?: { label: string; cls: string; style?: React.CSSProperties }
 }
 
 const SECTIONS: { title: string; items: NavItem[] }[] = [
@@ -38,13 +37,31 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
       { href: '/volunteers', label: 'Volunteers', icon: Users },
       { href: '/resources', label: 'Resources', icon: Package },
       { href: '/map', label: 'Disaster Map', icon: Map },
-      { href: '/report', label: 'Report Emergency', icon: PlusCircle, badge: { label: 'PUBLIC', cls: 'bg-red-500/15 text-red-400 border-red-500/25' } },
+      {
+        href: '/report',
+        label: 'Report Emergency',
+        icon: PlusCircle,
+        badge: {
+          label: 'PUBLIC',
+          cls: '',
+          style: { background: 'rgba(239,68,68,0.14)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.28)' },
+        },
+      },
     ],
   },
   {
     title: 'AI System',
     items: [
-      { href: '/agent', label: 'AI Agent', icon: Cpu, badge: { label: 'LIVE', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25' } },
+      {
+        href: '/agent',
+        label: 'AI Decision Center',
+        icon: Cpu,
+        badge: {
+          label: 'LIVE',
+          cls: '',
+          style: { background: 'rgba(34,211,238,0.12)', color: '#67E8F9', border: '1px solid rgba(34,211,238,0.28)' },
+        },
+      },
       { href: '/missions', label: 'Missions', icon: Target },
       { href: '/coordinator-chat', label: 'AI Coordinator', icon: MessageSquare },
     ],
@@ -71,22 +88,33 @@ export default function Sidebar() {
     <aside
       className="fixed left-0 top-0 h-full w-[260px] flex flex-col z-50"
       style={{
-        background: 'linear-gradient(180deg, #0d1425 0%, #0a1020 100%)',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: 'linear-gradient(180deg, #0B1220 0%, #0d1628 60%, #0B1220 100%)',
+        borderRight: '1px solid rgba(42,54,71,0.7)',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.4), inset -1px 0 0 rgba(255,255,255,0.03)',
       }}
     >
-      {/* ── Brand ────────────────────────────────────────── */}
-      <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* ── Brand ── */}
+      <div
+        className="px-5 pt-5 pb-4"
+        style={{ borderBottom: '1px solid rgba(42,54,71,0.5)' }}
+      >
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 glow-red"
-            style={{ background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' }}
+            style={{
+              background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 60%, #991B1B 100%)',
+              boxShadow: '0 0 20px rgba(239,68,68,0.30), inset 0 1px 0 rgba(255,255,255,0.18)',
+            }}
           >
-            <Radio className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
+            <Radio style={{ width: 17, height: 17, color: '#fff' }} />
           </div>
           <div>
-            <h1 className="text-white font-bold text-base leading-none tracking-tight">RescueNet AI</h1>
-            <p className="text-xs mt-0.5 font-medium" style={{ color: '#f87171' }}>Emergency Operations</p>
+            <h1 className="text-white font-bold text-base leading-none tracking-tight">
+              RescueNet AI
+            </h1>
+            <p className="text-xs mt-0.5 font-semibold" style={{ color: '#FCA5A5' }}>
+              Emergency Operations
+            </p>
           </div>
         </div>
 
@@ -94,42 +122,31 @@ export default function Sidebar() {
         <div className="flex items-center justify-between mt-3.5">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dot-live" />
-            <span className="text-[11px] font-medium" style={{ color: '#94a3b8' }}>All Systems Operational</span>
+            <span className="text-[11px] font-medium" style={{ color: '#94A3B8' }}>
+              All Systems Operational
+            </span>
           </div>
-          <div className="flex items-center gap-1">
-            <Activity className="w-3 h-3" style={{ color: '#60a5fa' }} />
-            <span className="text-[10px] font-medium" style={{ color: '#60a5fa' }}>Gemini</span>
+          <div
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+            style={{
+              background: 'rgba(34,211,238,0.10)',
+              border: '1px solid rgba(34,211,238,0.25)',
+              boxShadow: '0 0 10px rgba(34,211,238,0.08)',
+            }}
+          >
+            <Activity style={{ width: 10, height: 10, color: '#22D3EE' }} />
+            <span className="text-[10px] font-bold" style={{ color: '#22D3EE' }}>Gemini</span>
           </div>
         </div>
       </div>
 
-      {/* ── Demo Quick-Launch ─────────────────────────────── */}
-      <div className="px-3 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <Link
-          href="/agent"
-          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all group"
-          style={{
-            background: 'linear-gradient(135deg, rgba(220,38,38,0.12) 0%, rgba(239,68,68,0.07) 100%)',
-            border: '1px solid rgba(220,38,38,0.2)',
-          }}
-        >
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.2)' }}>
-            <Rocket className="w-3.5 h-3.5 text-red-400" />
-          </div>
-          <span className="text-red-300 text-xs font-semibold flex-1">Run Disaster Scenario</span>
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(220,38,38,0.25)', color: '#fca5a5', border: '1px solid rgba(220,38,38,0.3)' }}>
-            DEMO
-          </span>
-        </Link>
-      </div>
-
-      {/* ── Navigation ───────────────────────────────────── */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-5">
+      {/* ── Navigation ── */}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
         {SECTIONS.map(({ title, items }) => (
           <div key={title}>
             <p
-              className="text-[10px] font-semibold uppercase tracking-widest px-3 mb-1.5"
-              style={{ color: '#334155' }}
+              className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5"
+              style={{ color: '#475569', letterSpacing: '0.14em' }}
             >
               {title}
             </p>
@@ -141,38 +158,58 @@ export default function Sidebar() {
                     key={href}
                     href={href}
                     className={clsx(
-                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group relative',
-                      active
-                        ? 'text-white'
-                        : 'hover:text-slate-200'
+                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 relative',
+                      active ? 'text-white' : 'text-slate-400 hover:text-white'
                     )}
                     style={
                       active
                         ? {
-                            background: 'linear-gradient(135deg, rgba(220,38,38,0.15) 0%, rgba(220,38,38,0.08) 100%)',
-                            border: '1px solid rgba(220,38,38,0.2)',
-                            color: '#f1f5f9',
+                            background: 'linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(16,185,129,0.06) 100%)',
+                            border: '1px solid rgba(16,185,129,0.35)',
+                            boxShadow: '0 0 16px rgba(16,185,129,0.10)',
                           }
                         : {
-                            color: '#64748b',
                             border: '1px solid transparent',
                           }
                     }
+                    onMouseEnter={(e) => {
+                      if (!active) {
+                        const el = e.currentTarget as HTMLElement
+                        el.style.background = 'rgba(42,54,71,0.6)'
+                        el.style.borderColor = 'rgba(42,54,71,0.9)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active) {
+                        const el = e.currentTarget as HTMLElement
+                        el.style.background = ''
+                        el.style.borderColor = 'transparent'
+                      }
+                    }}
                   >
+                    {/* Active left indicator */}
                     {active && (
                       <span
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
-                        style={{ background: '#ef4444' }}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
+                        style={{
+                          background: 'linear-gradient(180deg, #10B981 0%, #22D3EE 100%)',
+                          boxShadow: '0 0 10px rgba(16,185,129,0.55)',
+                        }}
                       />
                     )}
                     <Icon
                       className="flex-shrink-0 transition-colors"
-                      style={{ width: 15, height: 15, color: active ? '#f87171' : 'inherit' }}
+                      style={{
+                        width: 15,
+                        height: 15,
+                        color: active ? '#10B981' : 'inherit',
+                      }}
                     />
                     <span className="flex-1 truncate">{label}</span>
                     {badge && (
                       <span
-                        className={clsx('text-[9px] font-bold px-1.5 py-0.5 rounded border tracking-wider', badge.cls)}
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wider"
+                        style={badge.style}
                       >
                         {badge.label}
                       </span>
@@ -185,13 +222,18 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* ── Footer ───────────────────────────────────────── */}
-      <div className="px-5 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="flex items-center gap-2 mb-1">
-          <Zap className="w-3 h-3" style={{ color: '#facc15' }} />
-          <span className="text-[11px] font-semibold" style={{ color: '#475569' }}>Google Cloud Hackathon</span>
+      {/* ── Footer ── */}
+      <div
+        className="px-5 py-3.5"
+        style={{ borderTop: '1px solid rgba(42,54,71,0.5)' }}
+      >
+        <div className="flex items-center gap-2 mb-0.5">
+          <Zap style={{ width: 11, height: 11, color: '#FBBF24' }} />
+          <span className="text-[11px] font-semibold" style={{ color: '#64748B' }}>
+            Google Cloud Hackathon
+          </span>
         </div>
-        <p className="text-[10px]" style={{ color: '#334155' }}>
+        <p className="text-[10px]" style={{ color: '#374151' }}>
           Gemini 2.5 Flash · MongoDB Atlas · Multi-Agent
         </p>
       </div>

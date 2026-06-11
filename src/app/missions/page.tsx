@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Target, User, Package, MapPin, Calendar, Download, Clock, CheckCircle, XCircle, Users, Brain, Timer } from 'lucide-react'
+import { Target, User, MapPin, Calendar, Download, Clock, CheckCircle, XCircle, Users, Brain, Timer } from 'lucide-react'
 import type { Mission, EmergencyRequest, Volunteer, Resource } from '@/types'
+import DbOfflineBanner from '@/components/ui/DbOfflineBanner'
 import Badge from '@/components/ui/Badge'
 import Link from 'next/link'
+import { computeETAMinutes, formatETA } from '@/lib/eta'
 
 type PopulatedMission = Mission & {
   emergencyRequestId: EmergencyRequest
@@ -19,11 +21,7 @@ const RESOURCE_ICONS: Record<string, string> = {
 function computeETA(mission: PopulatedMission): string {
   const req = mission.emergencyRequestId
   if (!req) return '—'
-  const urgencyBase: Record<string, number> = { critical: 10, high: 22, medium: 35, low: 55 }
-  const base = urgencyBase[req.urgency] ?? 30
-  const peopleMod = Math.floor(Math.min(req.peopleAffected / 50, 1) * 8)
-  const total = base + peopleMod
-  return `${total} min`
+  return formatETA(computeETAMinutes(req.urgency, req.peopleAffected))
 }
 
 const REASONING_FACTORS = [
@@ -117,14 +115,19 @@ async function exportMissionPDF(mission: PopulatedMission) {
 export default function MissionsPage() {
   const [missions, setMissions] = useState<PopulatedMission[]>([])
   const [loading, setLoading] = useState(true)
+  const [offline, setOffline] = useState(false)
   const [filter, setFilter] = useState<string>('all')
   const [updating, setUpdating] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
-    const res = await fetch('/api/missions')
-    const data = await res.json()
-    setMissions(Array.isArray(data) ? data : [])
+    try {
+      const res = await fetch('/api/missions')
+      const data = await res.json()
+      if (data?.offline) { setOffline(true); setLoading(false); return }
+      setOffline(false)
+      setMissions(Array.isArray(data) ? data : [])
+    } catch { /* network error — keep previous data */ }
     setLoading(false)
   }
 
@@ -169,6 +172,8 @@ export default function MissionsPage() {
           </button>
         </Link>
       </div>
+
+      {offline && <DbOfflineBanner onRetry={load} />}
 
       {/* ── Filter tabs ─────────────────────────────────── */}
       <div className="flex items-center gap-2">

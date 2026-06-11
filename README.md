@@ -1,264 +1,592 @@
-# RescueNet AI — Disaster Response Coordination Platform
+<div align="center">
 
-A **functional AI coordination agent** built for the **Google Cloud AI Hackathon** with the **MongoDB Partner Track**. RescueNet AI is not a chatbot — it reads real data, plans with Gemini AI, matches volunteers and resources with structured reasoning, and creates missions in MongoDB under human oversight.
+# 🚨 RescueNet AI
+
+### AI-Powered Disaster Response & Emergency Coordination Platform
+
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-6.0-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Google Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-AI-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Google Cloud](https://img.shields.io/badge/Google_Cloud-Platform-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+**Built for the Google Cloud × MongoDB Hackathon**
+
+[Live Demo](#) · [Devpost Submission](#) · [Report a Bug](https://github.com/sibwz/rescuenet/issues) · [Request a Feature](https://github.com/sibwz/rescuenet/issues)
+
+</div>
 
 ---
 
-## Features
+## 📋 Table of Contents
 
-| Module | Description |
+1. [Project Overview](#-project-overview)
+2. [Problem Statement](#-problem-statement)
+3. [Solution](#-solution)
+4. [Key Features](#-key-features)
+5. [System Architecture](#-system-architecture)
+6. [AI Decision Workflow](#-ai-decision-workflow)
+7. [Distance-Based Dispatch Workflow](#-distance-based-dispatch-workflow)
+8. [Technology Stack](#-technology-stack)
+9. [Database Design](#-database-design)
+10. [Installation Guide](#-installation-guide)
+11. [Environment Variables](#-environment-variables)
+12. [Running Locally](#-running-locally)
+13. [API Routes](#-api-routes)
+14. [Future Improvements](#-future-improvements)
+15. [Hackathon Compliance](#-hackathon-compliance)
+16. [Team](#-team)
+17. [License](#-license)
+
+---
+
+## 🌐 Project Overview
+
+**RescueNet AI** is a full-stack emergency coordination platform that uses Google Gemini AI and coordinate-based dispatch logic to automatically connect emergency requests with the nearest available volunteers and resources — without manual dispatcher intervention.
+
+When a disaster strikes, every second matters. RescueNet AI eliminates the coordination bottleneck by running a complete triage-to-dispatch pipeline the moment an emergency is reported: Gemini classifies severity, the location is geocoded and validated, the best-matched volunteer is selected by skill and GPS distance, the closest resource depot is allocated, and a mission record is created — all before the HTTP response returns to the caller.
+
+---
+
+## 🔥 Problem Statement
+
+Traditional disaster response suffers from three critical bottlenecks:
+
+| Problem | Real-World Impact |
 |---|---|
-| **Dashboard** | Live stats: total requests, critical alerts, active volunteers/resources, active missions |
-| **Emergency Requests** | Submit, filter, and manage disaster reports with urgency classification |
-| **Volunteers** | Register and manage field volunteers with skills and availability tracking |
-| **Resources** | Track food, water, medicine, shelter kits, and vehicles across locations |
-| **AI Agent** | Generates prioritized mission plans — Gemini primary, deterministic fallback, visible error banner |
-| **Missions** | View, approve, complete, or cancel coordinator-approved missions |
-| **Integrations** | Live status dashboard for Gemini, Agent Builder, MongoDB, MCP, and workflow |
+| **Manual dispatch** | Coordinators spend 15–45 minutes per incident routing calls and assigning volunteers |
+| **No real-time resource visibility** | Depots run out silently; volunteers arrive on scene without supplies |
+| **Location ambiguity** | Vague reports ("Lahore", "the city centre") make distance calculations impossible |
+
+In mass-casualty events, these bottlenecks cost lives. A system that automates initial triage and dispatch frees coordinators to focus on complex decisions rather than logistics.
 
 ---
 
-## Tech Stack
+## 💡 Solution
 
-| Technology | Role |
-|---|---|
-| **Next.js 14** (App Router) | Full-stack framework |
-| **TypeScript** | Type safety across the entire codebase |
-| **Tailwind CSS** | Styling |
-| **MongoDB Atlas** | Primary database (partner track) |
-| **Mongoose** | MongoDB ODM |
-| **Gemini API** (`@google/generative-ai`) | Primary AI planning engine |
-| **Google Cloud Agent Builder** | Agent orchestration integration point |
-| **MongoDB MCP Server** | AI tool access to MongoDB collections |
+RescueNet AI automates the first-response coordination loop end-to-end:
+
+1. **Validate** — Every location is geocoded before any record is saved. Broad inputs like `Karachi` or `Pakistan` are rejected at the API level with a specific, actionable error.
+2. **Classify** — Gemini 2.5 Flash reads the incident description and assigns an urgency level (`low` → `critical`) with a written justification the coordinator can read.
+3. **Dispatch** — A scoring engine ranks all available volunteers by skill match + Haversine distance, and all resource depots by type match + depot proximity. The top candidates are assigned immediately.
+4. **Track** — Missions are created with ETA estimates, volunteer and resource assignments, and a full audit log of every AI and dispatch decision.
+
+Coordinators get a live dashboard to approve volunteer registrations, monitor active missions, and manage resource inventories — with zero manual dispatch required for standard emergencies.
 
 ---
 
-## Architecture
+## ✨ Key Features
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  Coordinator Browser                │
-│  Dashboard · Emergency · Volunteers · Resources     │
-│  AI Agent · Missions · Integrations                 │
-└────────────────────┬────────────────────────────────┘
-                     │ Next.js App Router
-┌────────────────────▼────────────────────────────────┐
-│               API Routes (Next.js)                  │
-│  /api/agent    → AI planning + mission creation     │
-│  /api/emergency → CRUD emergency requests           │
-│  /api/volunteers → CRUD volunteers                  │
-│  /api/resources  → CRUD resources                   │
-│  /api/missions   → CRUD + status cascade            │
-│  /api/integrations → Live integration status        │
-└──────────┬──────────────────────┬───────────────────┘
-           │                      │
-┌──────────▼──────┐    ┌──────────▼──────────────────┐
-│   Gemini API    │    │        MongoDB Atlas         │
-│  (primary AI)   │    │  emergency_requests          │
-│                 │    │  volunteers                  │
-│  Falls back to  │    │  resources                   │
-│  deterministic  │    │  missions                    │
-│  planner on     │    │  agent_logs                  │
-│  quota/error    │    │                              │
-└─────────────────┘    │  Exposed via MongoDB MCP     │
-                       └──────────────────────────────┘
-```
+### 🆘 Emergency Management
+- Public emergency reporting with OTP verification
+- Coordinator-side emergency creation with immediate auto-dispatch
+- AI priority scoring (0–100) calculated per request from urgency, type, and people affected
+- Gemini-powered urgency classification with written reasoning per incident
+- Full status lifecycle: `pending` → `assigned` / `waiting_for_volunteer` / `resource_shortage` → `completed`
+- People-affected count directly influences dispatch priority scoring
 
-### AI Agent Workflow
+### 👥 Volunteer Management
+- Self-registration with email OTP verification
+- Coordinator approval / rejection workflow with a dedicated review panel
+- Skills tagging: `medical`, `rescue`, `transport`, `logistics`, `food_distribution`
+- Real-time availability status: `available`, `deployed`, `offline`
+- Auto-dispatch eligibility enforced — only approved volunteers with geocoded locations are considered
+- Active mission details (emergency type, location, ETA, resource) shown per volunteer card
 
-```
-Coordinator clicks "Generate AI Response Plan"
-        ↓
-Read MongoDB: pending requests, available volunteers, available resources
-        ↓
-[Gemini API] ──→ Prioritized plans with structured reasoning
-      ↓ (if Gemini fails: quota / billing / timeout)
-[Deterministic Fallback] → Rule-based scoring (always works)
-      ↓ (visible yellow banner shown to coordinator)
-Display plans: priority reason, volunteer match, resource allocation, risk level, next action
-        ↓
-Coordinator reviews and selects plans (human oversight)
-        ↓
-Click "Approve and Create Missions"
-        ↓
-Write to MongoDB: missions created, volunteers → busy, resources → assigned, requests → assigned
-        ↓
-Missions page shows active missions; mark as completed when done
+### 📦 Resource Management
+- Depot inventory tracking across five resource types: `food`, `water`, `medicine`, `shelter_kits`, `vehicles`
+- Quantity-aware allocation — resources are only dispatched if stock is sufficient
+- Restock modal with quantity input and reason logging (`Donation received`, `Government supply`, `Purchase`, `Transfer`, `Other`)
+- Full audit trail via Agent Logs for every restock and allocation event
+- Automatic status promotion to `available` on restock, triggering re-dispatch for waiting emergencies
+
+### 🤖 AI Dispatch Engine
+- Gemini 2.5 Flash urgency classification with written reasoning stored per emergency
+- Deterministic volunteer scoring: skill match weight + Haversine distance score + vehicle bonus
+- Deterministic resource scoring: type priority + depot distance score + quantity score
+- Automatic mission creation with volunteer confidence and success probability percentages
+- `autoReassignPending` — re-runs dispatch for `waiting_for_volunteer` and `resource_shortage` emergencies whenever a volunteer or resource becomes newly available
+
+### 📍 Location Validation
+- Real-time debounced validation on every location input field (700 ms delay)
+- Geocoding via Nominatim (OpenStreetMap) — address text → lat/lng
+- GPS "Use My Location" button on all forms for instant coordinate capture
+- Hard server-side rejection of city-only inputs: `Lahore`, `Karachi`, `Islamabad`, `Pakistan`, and others
+- Coordinates stored with every accepted record — the dispatch engine never uses city name strings for distance calculations
+
+### 🗺️ Missions
+- Auto-generated on successful dispatch — no manual mission creation required
+- ETA calculation based on urgency level and number of people affected
+- Volunteer and resource assignment stored and displayed per mission
+- Mission completion workflow visible to coordinators
+- Full mission history with AI confidence scores
+
+### 📊 Analytics Dashboard
+- Live emergency statistics broken down by urgency, status, and type
+- Volunteer availability breakdown with deployed / available / offline counts
+- Resource inventory summary by category across all depots
+- System activity log (Agent Logs) showing every AI classification, dispatch decision, and restock event in chronological order
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Client — Next.js 14 App Router"]
+        UI[React Pages]
+        Forms[Form Components\nReal-time Location Validation]
+        Dashboard[Analytics Dashboard]
+    end
+
+    subgraph API["API Layer — Next.js Route Handlers"]
+        ER[/api/emergency]
+        RPT[/api/report + OTP]
+        VOL[/api/volunteers + OTP]
+        RES[/api/resources]
+        MSN[/api/missions]
+        VLD[/api/validate-location]
+        AGT[/api/agent]
+    end
+
+    subgraph AI["AI Layer — Google Cloud"]
+        GEM["Gemini 2.5 Flash\nUrgency Classification\nImage Analysis\nAgent Reasoning"]
+    end
+
+    subgraph Dispatch["Server-Side Dispatch Engine"]
+        DISP["dispatchEmergency()\ndispatch.ts"]
+        PLAN["deterministicPlanner()\nplanner.ts"]
+        AUTO["autoReassignPending()\nauto-reassign.ts"]
+        ETA["computeETAMinutes()\neta.ts"]
+    end
+
+    subgraph Location["Location Services"]
+        LOC["location-validator.ts\nisLocationTooVague()"]
+        NOM["Nominatim Geocoder\nOpenStreetMap"]
+        HAV["Haversine Distance\nFormula"]
+    end
+
+    subgraph DB["MongoDB Atlas"]
+        EMR[(EmergencyRequests)]
+        VDB[(Volunteers)]
+        RDB[(Resources)]
+        MDB[(Missions)]
+        LOG[(AgentLogs)]
+        PND[(PendingReports)]
+    end
+
+    UI --> API
+    Forms --> VLD
+    VLD --> LOC
+    LOC --> NOM
+
+    ER --> GEM
+    RPT --> GEM
+    AGT --> GEM
+
+    GEM --> DISP
+    DISP --> PLAN
+    PLAN --> HAV
+    DISP --> ETA
+    AUTO --> DISP
+
+    API --> DB
+    Dispatch --> DB
 ```
 
 ---
 
-## Environment Variables
+## 🧠 AI Decision Workflow
 
-```env
-# Required
-MONGODB_URI=mongodb+srv://<user>:<pass>@cluster0.xxxxx.mongodb.net/rescuenet?retryWrites=true&w=majority
+```mermaid
+sequenceDiagram
+    actor User
+    participant Form as Report Form
+    participant ValAPI as /api/validate-location
+    participant Geocoder as Nominatim
+    participant ReportAPI as /api/report
+    participant Gemini as Gemini 2.5 Flash
+    participant Dispatch as dispatchEmergency()
+    participant Planner as deterministicPlanner()
+    participant DB as MongoDB Atlas
 
-# Optional — enables Gemini AI (falls back to deterministic planner if absent or on error)
-GEMINI_API_KEY=your_gemini_api_key_here
+    User->>Form: Fill emergency form
+    Form->>ValAPI: POST location (debounced 700 ms)
+    ValAPI->>Geocoder: Geocode address string
+    Geocoder-->>ValAPI: lat/lng or not-found
+    ValAPI-->>Form: valid ✓ / invalid ✗ / too vague ✗
+    Note over Form: Submit button stays disabled\nuntil location is validated
 
-# Supported: gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro, gemini-2.5-pro
-GEMINI_MODEL=gemini-2.0-flash
+    User->>ReportAPI: Submit (OTP verified)
+    ReportAPI->>Geocoder: Re-validate + store coordinates
+    ReportAPI->>Gemini: Classify urgency from description
+    Gemini-->>ReportAPI: urgency level + written reason
+    ReportAPI->>DB: Save EmergencyRequest (status: pending)
 
-# Optional — shows Agent Builder as configured in the Integrations page
-GOOGLE_CLOUD_PROJECT_ID=your_google_cloud_project_id_here
+    ReportAPI->>Dispatch: dispatchEmergency(emergencyId)
+    Dispatch->>DB: Load all available volunteers + resources
+    Dispatch->>Planner: Score and rank candidates
+    Note over Planner: Skill weight + distance score\n+ vehicle bonus per volunteer\nType priority + distance score\n+ quantity score per resource
+    Planner-->>Dispatch: Best volunteer + best resource
 
-NEXT_PUBLIC_APP_NAME=RescueNet AI
+    Dispatch->>DB: Update EmergencyRequest → assigned
+    Dispatch->>DB: Update Volunteer → busy
+    Dispatch->>DB: Update Resource → assigned
+    Dispatch->>DB: Create Mission record
+    Dispatch->>DB: Write AgentLog entry
+    Dispatch-->>ReportAPI: DispatchResult with step trace
+    ReportAPI-->>Form: Success + pipeline steps array
+    Form-->>User: Animated step-by-step dispatch pipeline
 ```
 
 ---
 
-## Setup Instructions
+## 📐 Distance-Based Dispatch Workflow
 
-### 1. Prerequisites
+```mermaid
+flowchart TD
+    A([New Emergency Created]) --> B{Coordinates\nstored with record?}
+    B -- Yes --> C[Use stored lat / lng]
+    B -- No / Legacy record --> D[Re-geocode location text]
+    D --> E{Geocode\nsucceeded?}
+    E -- No --> WAIT([Status: waiting_for_volunteer\nNo coordinates — cannot dispatch])
+    E -- Yes --> C
 
-- Node.js 18+
-- MongoDB Atlas account (free tier works)
-- Google Cloud account with Gemini API key (optional — app works without it)
+    C --> F[Score all available volunteers]
 
-### 2. Clone & Install
+    F --> G{Has valid\ncoordinates?}
+    G -- No / city_only --> SKIP1([Skip this volunteer])
+    G -- Yes --> H[Haversine distance to emergency]
+    H --> I{Within 50 km?}
+    I -- No --> SKIP1
+    I -- Yes --> J{Skill match?}
+    J -- No match --> SKIP1
+    J -- Match --> K["Score = skill_weight × matches\n+ dist_score\n+ vehicle_bonus"]
+
+    K --> L[Select highest-score volunteer]
+
+    L --> M[Score all available resources]
+    M --> N{Has valid depot\ncoordinates?}
+    N -- No --> SKIP2([Skip this resource])
+    N -- Yes --> O[Haversine distance to emergency]
+    O --> P{Within 80 km?}
+    P -- No --> SKIP2
+    P -- Yes --> Q{Type matches\nemergency type?}
+    Q -- No --> SKIP2
+    Q -- Yes --> R["Score = type_priority\n+ dist_score\n+ quantity_score"]
+
+    R --> S[Select highest-score resource]
+
+    S --> T{Assignment\noutcome}
+    T -- Volunteer only --> U([Mission: resource_shortage\nautoReassignPending on next restock])
+    T -- Neither assigned --> V([Mission: waiting_for_volunteer\nautoReassignPending on next availability])
+    T -- Both assigned --> W([Mission: active ✓])
+
+    W --> X[Update Emergency + Volunteer + Resource]
+    X --> Y[Create Mission Record with ETA]
+    Y --> Z[Write AgentLog audit entry]
+```
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Framework** | Next.js 14 (App Router) | Full-stack React with co-located server-side API route handlers |
+| **Language** | TypeScript 5 | End-to-end type safety across frontend and backend |
+| **Database** | MongoDB Atlas | Flexible document store for emergencies, volunteers, resources, missions |
+| **ODM** | Mongoose | Schema definition, validation, and type-safe query helpers |
+| **AI** | Google Gemini 2.5 Flash | Urgency classification, image analysis, multi-agent planning |
+| **Cloud** | Google Cloud (Vertex AI) | Gemini API hosting and authentication |
+| **Geocoding** | Nominatim (OpenStreetMap) | Free address → lat/lng conversion |
+| **Distance** | Haversine formula (TypeScript) | Accurate great-circle distance between GPS coordinates |
+| **Styling** | Tailwind CSS | Utility-first CSS with a custom dark Charcoal + Emerald + Amber theme |
+| **Icons** | Lucide React | Consistent, accessible icon set |
+
+---
+
+## 🗄️ Database Design
+
+### `EmergencyRequest`
+
+| Field | Type | Description |
+|---|---|---|
+| `reporterName` | String | Name of the person reporting the incident |
+| `location` | String | Human-readable location label |
+| `latitude` / `longitude` | Number | Geocoded coordinates — required for dispatch |
+| `locationValidated` | Boolean | `true` only after geocoding passes |
+| `emergencyType` | Enum | `medical`, `food`, `water`, `shelter`, `evacuation` |
+| `urgency` | Enum | `low`, `medium`, `high`, `critical` |
+| `urgency_reason` | String | Gemini's written justification for the urgency level |
+| `peopleAffected` | Number | Estimated affected population count |
+| `status` | Enum | `pending` → `assigned` / `waiting_for_volunteer` / `resource_shortage` → `completed` |
+| `assignedVolunteerName` | String | Populated on successful dispatch |
+| `assignedResourceType` | String | Populated on successful dispatch |
+| `estimatedETA` | String | Human-readable time-to-arrival estimate |
+| `noMatchReason` | String | Explains why dispatch failed, if applicable |
+
+### `Volunteer`
+
+| Field | Type | Description |
+|---|---|---|
+| `name`, `email`, `phone` | String | Contact details |
+| `location` | String | Area label entered during registration |
+| `latitude` / `longitude` | Number | Geocoded coordinates |
+| `locationPrecision` | Enum | `exact` (GPS), `area` (geocoded), `city_only` (legacy — excluded from dispatch) |
+| `skills` | String[] | One or more of: `medical`, `rescue`, `transport`, `logistics`, `food_distribution` |
+| `hasVehicle` | Boolean | Used as a tiebreaker in volunteer scoring |
+| `status` | Enum | `pending_approval` → `available` / `busy` / `deployed` / `offline` / `rejected` |
+| `approved` | Boolean | Set `true` by coordinator action |
+| `verifiedEmail` | Boolean | Set `true` after OTP verification |
+
+### `Resource`
+
+| Field | Type | Description |
+|---|---|---|
+| `resourceType` | Enum | `food`, `water`, `medicine`, `shelter_kits`, `vehicles` |
+| `quantity` | Number | Current stock in units |
+| `location` | String | Depot area label |
+| `latitude` / `longitude` | Number | Geocoded depot coordinates |
+| `dispatchEligible` | Boolean | `false` only for legacy records missing coordinates |
+| `status` | Enum | `available`, `assigned`, `depleted` |
+
+### `Mission`
+
+| Field | Type | Description |
+|---|---|---|
+| `emergencyRequest` | ObjectId ref | Linked emergency record |
+| `volunteer` | ObjectId ref | Assigned volunteer |
+| `resource` | ObjectId ref | Allocated resource depot |
+| `status` | Enum | `active`, `awaiting_volunteer`, `resource_shortage`, `completed` |
+| `volunteerConfidence` | Number | Dispatch scoring confidence (0–100) |
+| `missionSuccessProbability` | Number | AI-estimated outcome probability |
+| `estimatedETA` | String | Time-to-arrival estimate |
+
+### `AgentLog`
+
+| Field | Type | Description |
+|---|---|---|
+| `action` | String | e.g. `EMERGENCY_SUBMITTED`, `DISPATCH_SUCCESS`, `RESOURCE_RESTOCK`, `AUTO_REASSIGN_SUCCESS` |
+| `details` | String | Full human-readable audit entry |
+| `relatedIds` | ObjectId[] | References to all documents affected by this event |
+| `createdAt` | Date | Timestamp — indexed for chronological display |
+
+---
+
+## 🚀 Installation Guide
+
+### Prerequisites
+
+- **Node.js** 18.x or higher
+- **npm** or **yarn**
+- **MongoDB Atlas** account (free M0 tier is sufficient)
+- **Google Cloud** project with the Vertex AI API enabled and Gemini access
+
+### 1. Clone the Repository
 
 ```bash
-git clone <your-repo>
-cd rescuenet-ai
+git clone https://github.com/sibwz/rescuenet.git
+cd rescuenet
+```
+
+### 2. Install Dependencies
+
+```bash
 npm install
 ```
 
-### 3. Configure Environment
+### 3. Configure Environment Variables
 
-```bash
-cp .env.example .env.local
-```
+See the [Environment Variables](#-environment-variables) section below.
 
-Edit `.env.local` with your MongoDB URI and Gemini API key.
-
-> **Without a Gemini key**: The app runs in deterministic mode — the AI agent still works using rule-based scoring. The coordinator sees `(set GEMINI_API_KEY to enable Gemini)` in the UI.
-
-> **With a Gemini key that hits quota**: A yellow banner appears: "Gemini unavailable — fallback planner active." Plans are still generated. The demo never breaks.
-
-### 4. Run
+### 4. Run the Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
-
-### 5. Seed Demo Data
-
-On the Dashboard, click **"Seed Demo Data"** to populate:
-- 6 emergency requests (critical → low urgency, multiple cities)
-- 7 volunteers with varied skills and locations
-- 8 resource entries across depots
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## Demo Flow
+## 🔐 Environment Variables
 
-1. **Dashboard** → Seed demo data → see live counts
-2. **Emergency Requests** → filter by critical → see flood, medical, fire emergencies
-3. **Volunteers** → see skill diversity (medical, rescue, transport, logistics)
-4. **Resources** → see supply depots by location
-5. **AI Agent** → Generate Plan → review structured reasoning → Approve and Create Missions
-6. **Missions** → see active missions → mark one as Completed
-7. **Integrations** → show all systems green
+Create a `.env.local` file in the project root with the following values:
 
-Full narrated script: `docs/demo-script.md`
+```env
+# ── MongoDB Atlas ──────────────────────────────────────────────────────────────
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>?retryWrites=true&w=majority
 
----
+# ── Google Cloud / Gemini ──────────────────────────────────────────────────────
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+# Model ID for Gemini 2.5 Flash Preview
+GEMINI_MODEL=gemini-2.5-flash-preview-05-20
 
-## Hackathon Compliance
+# ── Application ────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-| Requirement | Status |
-|---|---|
-| Google Cloud AI (Gemini) | ✅ Primary planner |
-| No OpenAI / other AI providers | ✅ Only `@google/generative-ai` |
-| Google Cloud Agent Builder | ✅ Integration point + docs |
-| Functional agent (not chatbot) | ✅ Reads data, reasons, plans, creates tasks |
-| Human oversight | ✅ Coordinator approves before any write |
-| MongoDB Atlas (partner track) | ✅ All 5 collections |
-| MongoDB MCP Server | ✅ Configured, all collections exposed |
-| Agent reasoning visible | ✅ Priority, volunteer, resource, risk, next action |
-| Reliable demo | ✅ Fallback planner + visible error banner |
-
-Detailed checklist: `docs/hackathon-compliance.md`
-
----
-
-## Project Structure
-
+# ── OTP Verification ───────────────────────────────────────────────────────────
+# Random secret used to sign and verify OTP sessions
+OTP_SECRET=replace-with-a-long-random-string
 ```
-src/
-├── app/
-│   ├── page.tsx                    # Dashboard
-│   ├── emergency/page.tsx          # Emergency requests
-│   ├── volunteers/page.tsx         # Volunteer management
-│   ├── resources/page.tsx          # Resource tracking
-│   ├── agent/page.tsx              # AI Agent panel
-│   ├── missions/page.tsx           # Mission tracking
-│   ├── integrations/page.tsx       # Integration status
-│   └── api/
-│       ├── dashboard/route.ts      # Stats aggregation
-│       ├── emergency/route.ts      # CRUD
-│       ├── volunteers/route.ts     # CRUD
-│       ├── resources/route.ts      # CRUD
-│       ├── missions/route.ts       # CRUD + status cascade
-│       ├── agent/route.ts          # AI planning engine (Gemini + fallback)
-│       ├── integrations/route.ts   # Integration status checker
-│       └── seed/route.ts           # Demo data seeder
-├── components/
-│   ├── layout/Sidebar.tsx
-│   └── ui/Badge.tsx, Button.tsx, Modal.tsx
-├── lib/
-│   ├── mongodb.ts                  # Connection pooling
-│   └── gemini.ts                   # Gemini integration (returns null + error on failure)
-├── models/                         # Mongoose schemas
-└── types/index.ts                  # TypeScript interfaces (AgentPlan, AgentPlanReasoning, etc.)
 
-docs/
-├── google-cloud-agent-builder-setup.md
-├── mongodb-mcp-setup.md
-├── hackathon-compliance.md
-└── demo-script.md
+> **Google Cloud Authentication**
+>
+> For local development, authenticate with Application Default Credentials:
+> ```bash
+> gcloud auth application-default login
+> ```
+> For production / CI, set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable pointing to a service account key JSON file with the **Vertex AI User** role.
+
+---
+
+## ▶️ Running Locally
+
+```bash
+# Start the Next.js development server with hot reload
+npm run dev
+
+# Type-check without emitting — useful for CI
+npx tsc --noEmit
+
+# Build an optimised production bundle
+npm run build
+
+# Start the production server after building
+npm start
 ```
 
 ---
 
-## MongoDB Collections
+## 🔌 API Routes
 
-| Collection | Description |
+### Emergency Requests
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/emergency` | List all emergency requests |
+| `POST` | `/api/emergency` | Create an emergency (validates location, triggers auto-dispatch) |
+| `PUT` | `/api/emergency/[id]` | Update an emergency request |
+| `DELETE` | `/api/emergency/[id]` | Delete an emergency request |
+| `POST` | `/api/emergency/[id]/approve` | Coordinator approves a recommended mission |
+| `DELETE` | `/api/emergency/cleanup` | Remove demo-seeded records |
+
+### Public Emergency Reporting (OTP-Verified)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/report/send-otp` | Generate a verification code for the reporter |
+| `POST` | `/api/report/verify-otp` | Verify code and finalize report submission + dispatch |
+
+### Volunteers
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/volunteers` | List volunteers with active mission details |
+| `POST` | `/api/volunteers` | Register a new volunteer (initiates OTP flow) |
+| `PUT` | `/api/volunteers/[id]` | Update status, approve, or reject |
+| `DELETE` | `/api/volunteers/[id]` | Remove a volunteer record |
+| `POST` | `/api/volunteers/send-otp` | Send email OTP for verification |
+| `POST` | `/api/volunteers/verify-otp` | Verify OTP and activate volunteer |
+
+### Resources
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/resources` | List all resource depots |
+| `POST` | `/api/resources` | Add a depot (validates location, stores coordinates) |
+| `PUT` | `/api/resources/[id]` | Update status or restock `{ restock: { add, reason } }` |
+| `DELETE` | `/api/resources/[id]` | Remove a depot |
+
+### Missions
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/missions` | List all missions (populated with volunteer + resource) |
+| `PUT` | `/api/missions/[id]` | Update mission status (e.g. mark completed) |
+
+### Utilities
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/validate-location` | Geocode a location string; returns `valid`, `lat`, `lng`, `tooVague` |
+| `GET` | `/api/reverse-geocode` | Convert `?lat=&lng=` to a place name string |
+| `POST` | `/api/agent` | Run the multi-agent AI planning pipeline |
+| `POST` | `/api/demo` | Seed demonstration data |
+| `POST` | `/api/admin/cleanup-demo` | Remove all demo-seeded records |
+
+---
+
+
+
+## 🔮 Future Improvements
+
+| Feature | Description |
 |---|---|
-| `emergency_requests` | Disaster reports with type, urgency, location, affected count |
-| `volunteers` | Field volunteers with skills, location, vehicle, status |
-| `resources` | Supply inventory with type, quantity, location, status |
-| `missions` | Coordinator-approved assignments linking request + volunteer + resource |
-| `agent_logs` | Audit log of all agent actions and decisions |
-
-All collections are exposed via MongoDB MCP Server for AI agent tool access.
-
----
-
-## Google Cloud AI Integration Points
-
-### 1. Gemini API (Active)
-- File: `src/lib/gemini.ts`
-- Set `GEMINI_API_KEY` to activate
-- Defaults to `gemini-2.0-flash` model (configurable via `GEMINI_MODEL`)
-- Returns `{ result, geminiError }` — never throws; fallback is always available
-- Logs: `"Using Gemini planner"`, `"Gemini success"`, `"Gemini failed, fallback active"`
-
-### 2. Vertex AI Agent Builder (Integration Point)
-- File: `src/app/api/agent/route.ts`
-- Replace `generatePlanWithGemini()` with a Vertex AI Agent session
-- Configured tools: `emergency_lookup`, `volunteer_finder`, `resource_allocator`, `mission_writer`
-- Full setup: `docs/google-cloud-agent-builder-setup.md`
-
-### 3. MongoDB MCP Server
-- All 5 collections ready for MCP tool access
-- Full setup: `docs/mongodb-mcp-setup.md`
+| **SMS / Push Alerts** | Notify dispatched volunteers instantly via SMS (Twilio) or push notification |
+| **Real-time Updates** | Replace polling with WebSockets or SSE for a truly live dashboard |
+| **Interactive Map View** | Visualise emergency locations, volunteer positions, and depots on a map |
+| **Mobile Companion App** | React Native app for field volunteers to accept missions and update status |
+| **Multi-organisation Tenancy** | Isolate data per NGO so multiple organisations can share the platform |
+| **Predictive Pre-positioning** | Gemini-powered demand forecasting to suggest where to stage resources before disasters strike |
+| **Optimal Route Planning** | Multi-stop routing for vehicles delivering to several affected areas |
+| **Volunteer Training Profiles** | Track certifications, training hours, and past mission history alongside skills |
+| **Offline-first Mode** | Service worker caching so field coordinators can read data in low-connectivity zones |
 
 ---
 
-## License
+## 🏆 Hackathon Compliance
 
-MIT — see [LICENSE](./LICENSE)
+### Google Cloud × MongoDB Hackathon Requirements
+
+| Requirement | How RescueNet AI Meets It |
+|---|---|
+| **Google Cloud integration** | Vertex AI SDK used server-side to call Gemini 2.5 Flash for urgency classification, image analysis, and multi-agent planning |
+| **MongoDB Atlas integration** | All persistent data stored in MongoDB Atlas; Mongoose ODM provides typed schemas and query helpers |
+| **Meaningful AI / ML usage** | AI drives the entire triage pipeline — not a wrapper around a chatbot |
+| **Real-world impact** | Addresses disaster response coordination, a proven humanitarian bottleneck |
+| **Full-stack application** | Next.js 14 App Router: React frontend + server-side API routes + background dispatch jobs |
+| **Original work** | Built from scratch for this hackathon |
+
+### How Gemini 2.5 Flash Is Used
+
+| Use Case | Implementation |
+|---|---|
+| **Urgency classification** | Reads incident `description`, `emergencyType`, and `peopleAffected`; returns `low / medium / high / critical` with a written reasoning sentence stored per emergency |
+| **Image analysis** | Analyses uploaded disaster photos to detect disaster type, severity, estimated people affected, and recommended resource types |
+| **Multi-agent planning** | `/api/agent` runs a structured reasoning pipeline that returns volunteer and resource allocation plans with detailed justification per decision |
+
+### Why MongoDB Atlas
+
+- Document model matches emergency data naturally — each request embeds coordinates, status history, and assignment in one document
+- Flexible schema supports iterative feature additions without costly migrations
+- Geospatial-ready structure: `latitude` / `longitude` stored per document, ready for `$geoNear` queries in future
+- Atlas free tier (M0) fully supports the dataset required for hackathon demonstration
+
+---
+
+## 👥 Team
+
+| Name | Role |
+|---|---|
+| **Amar** | Full-stack Development · AI Integration · System Architecture |
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+**Built with care for the Google Cloud × MongoDB Hackathon**
+
+> *RescueNet AI — When every second counts, automation saves lives.*
+
+</div>

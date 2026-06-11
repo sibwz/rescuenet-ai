@@ -5,9 +5,19 @@ export interface IVolunteer extends Document {
   phone: string
   email: string
   location: string
+  latitude?: number
+  longitude?: number
+  locationValidated?: boolean
+  locationPrecision?: 'exact' | 'area' | 'city_only' | 'invalid'
   skills: Array<'medical' | 'transport' | 'food_distribution' | 'rescue' | 'logistics'>
   hasVehicle: boolean
-  status: 'available' | 'busy' | 'offline'
+  status: 'unverified' | 'pending_approval' | 'available' | 'deployed' | 'busy' | 'offline' | 'location_incomplete' | 'rejected'
+  currentMissionId?: mongoose.Types.ObjectId
+  source: 'user' | 'demo' | 'system'
+  verifiedEmail: boolean
+  approved: boolean
+  otpCode?: string
+  otpExpiry?: Date
   createdAt: Date
 }
 
@@ -24,11 +34,33 @@ const VolunteerSchema = new Schema<IVolunteer>(
       },
     ],
     hasVehicle: { type: Boolean, default: false },
+    latitude:          { type: Number },
+    longitude:         { type: Number },
+    locationValidated: { type: Boolean, default: false },
+    locationPrecision: {
+      type: String,
+      enum: ['exact', 'area', 'city_only', 'invalid'],
+      default: null,
+    },
     status: {
       type: String,
-      enum: ['available', 'busy', 'offline'],
+      enum: ['unverified', 'pending_approval', 'available', 'deployed', 'busy', 'offline', 'location_incomplete', 'rejected'],
       default: 'available',
     },
+    currentMissionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Mission',
+      required: false,
+    },
+    source: {
+      type: String,
+      enum: ['user', 'demo', 'system'],
+      default: 'user',
+    },
+    verifiedEmail: { type: Boolean, default: false },
+    approved: { type: Boolean, default: false },
+    otpCode: { type: String },
+    otpExpiry: { type: Date },
   },
   { timestamps: true }
 )
